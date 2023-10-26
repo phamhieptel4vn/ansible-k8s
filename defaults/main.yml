@@ -31,6 +31,7 @@ nginx_ingress_proxy_body_size: 20m
 
 install_calico: no
 calico_version: v3.26.3
+metric_version: v0.6.4
 sans_base:
   - "kubernetes"
   - "kubernetes.default"

@@ -1,16 +1,20 @@
 ---
 
 - name: Check if calio is installed
-  ansible.builtin.shell: kubectl get ns | grep calio-system
+  ansible.builtin.shell: kubectl get pods --all-namespaces | grep calico
   delegate_to: "{{ groups['kubemaster'][0] }}"
   run_once: true
   register: calio_namespace_exist
   ignore_errors: true
 
 - block:
+    - name: Install Tigera Calico operator
+      ansible.builtin.command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.3/manifests/tigera-operator.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
     - name: Download calio.yaml
       ansible.builtin.get_url:
-        url: ttps://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
+        url: https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
         dest: /root/calico-{{ calico_version }}.yaml
       delegate_to: "{{ groups['kubemaster'][0] }}"
       run_once: true
@@ -42,7 +46,7 @@
       ansible.builtin.command: kubectl apply -f /root/calico-{{ calico_version }}.yaml
       delegate_to: "{{ groups['kubemaster'][0] }}"
       run_once: true
-      
+
   when: 
     - inventory_hostname in groups['kubemaster']
     - longorn_namespace_exist.rc == 1

@@ -1,0 +1,86 @@
+---
+- name: Check if dashboard is installed
+  ansible.builtin.shell: kubectl get ns | grep dashboard
+  delegate_to: "{{ groups['kubemaster'][0] }}"
+  run_once: true
+  register: dashboard_namespace_exist
+  ignore_errors: true
+
+- block:
+    - name: Download dashboard.yaml
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
+        dest: /root/dashboard/dashboard-v2-beta6.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+
+    - name: Add KUBELET_ROOT_DIR env var
+      ansible.builtin.lineinfile:
+        path: /root/dashboard/dashboard-v2-beta6.yaml
+        insertafter: 'value: \"dashboard/csi-snapshotter:{{csi_snapshotter_version.stdout}}\"'
+        line: "          - name: KUBELET_ROOT_DIR"
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+
+    - name: Add KUBELET_ROOT_DIR env var, set value
+      ansible.builtin.lineinfile:
+        path: /root/dashboard/dashboard-v2-beta6.yaml
+        insertafter: "- name: KUBELET_ROOT_DIR"
+        line: '            value: "/var/lib/kubelet"'
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+
+    - name: Install dashboard
+      ansible.builtin.command: kubectl apply -f /root/dashboard-v2-beta6.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+
+    - name: Add cert ssl for dashboard
+      ansible.builtin.file:
+        path: /root/dashboard/certs
+        mode: "1777"
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+    - name: Execute create cert sign file
+      ansible.builtin.command: openssl req -nodes -newkey rsa:2048 -keyout certs/dashboard.key -out certs/dashboard.csr -subj "/C=/ST=/L=/O=/OU=/CN=kubernetes-dashboard"
+      args:
+        chdir: /root/dashboard/
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+    - name: Execute create cert sign file
+      ansible.builtin.command: openssl x509 -req -sha256 -days 365 -in certs/dashboard.csr -signkey certs/dashboard.key -out certs/dashboard.crt
+      args:
+        chdir: /root/dashboard/
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+
+    - name: Create and apply cert sign file
+      ansible.builtin.command: kubectl create secret generic kubernetes-dashboard-certs --from-file=certs -n kubernetes-dashboard
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+    - name: Copy file admin-user.yaml for login dashboard
+      ansible.builtin.copy:
+        src: admin-user.yaml
+        dest: /root/dashboard/
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+    
+    - name: Apply role admin dashboard
+      ansible.builtin.command: kubectl apply -f /root/dashboard/admin-user.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+    
+    - name: Get Token Login Kubenet Dashboard
+      ansible.builtin.command: kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}')
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+    
+    - name: Download Metric server
+      ansible.builtin.get_url:
+        url: https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.4/components.yaml
+        dest: /root/metric-{{ metric_version }}.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+    - name: Deploy metric server for Dashboard
+      ansible.builtin.command: kubectl apply -f /root/metric-{{ metric_version }}.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+  when:
+    - inventory_hostname in groups['kubemaster']
+    - longorn_namespace_exist.rc == 1
