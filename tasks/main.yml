@@ -1,14 +1,14 @@
 ---
 
-- include_tasks: 
-    file: "{{ item }}"
-    apply:
-      tags: repo
-  with_first_found:
-    - "setup_repo_{{ ansible_os_family }}.yml"
-  tags: repo
+# - include_tasks: 
+#     file: "{{ item }}"
+#     apply:
+#       tags: repo
+#   with_first_found:
+#     - "setup_repo_{{ ansible_os_family }}.yml"
+#   tags: repo
 
-- setup:
+# - setup:
 
 - include_tasks: 
     file: preflight.yml
