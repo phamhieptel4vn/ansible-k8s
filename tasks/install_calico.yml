@@ -1,0 +1,48 @@
+---
+
+- name: Check if calio is installed
+  ansible.builtin.shell: kubectl get ns | grep calio-system
+  delegate_to: "{{ groups['kubemaster'][0] }}"
+  run_once: true
+  register: calio_namespace_exist
+  ignore_errors: true
+
+- block:
+    - name: Download calio.yaml
+      ansible.builtin.get_url:
+        url: ttps://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
+        dest: /root/calico-{{ calico_version }}.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+
+    - name: get csi snapshotter version
+      command: >
+        awk -F: '/csi-snapshotter/{print substr($3, 1, length($3)-1)}' "/root/calico-{{ calico_version }}.yaml"
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      register: csi_snapshotter_version
+      run_once: true
+
+    - name: Add KUBELET_ROOT_DIR env var
+      ansible.builtin.lineinfile:
+        path: /root/calico-{{ calico }}.yaml
+        insertafter: 'value: \"calico/csi-snapshotter:{{csi_snapshotter_version.stdout}}\"'
+        line: '          - name: KUBELET_ROOT_DIR'
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+
+    - name: Add KUBELET_ROOT_DIR env var, set value
+      ansible.builtin.lineinfile:
+        path: /root/calico-{{ calico }}.yaml
+        insertafter: '- name: KUBELET_ROOT_DIR'
+        line: '            value: "/var/lib/kubelet"'
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+
+    - name: Install calico
+      ansible.builtin.command: kubectl apply -f /root/calico-{{ calico_version }}.yaml
+      delegate_to: "{{ groups['kubemaster'][0] }}"
+      run_once: true
+      
+  when: 
+    - inventory_hostname in groups['kubemaster']
+    - longorn_namespace_exist.rc == 1

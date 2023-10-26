@@ -62,3 +62,10 @@
       tags: install_nginx_ingress
   tags: install_nginx_ingress
   when: install_nginx_ingress
+
+- include_tasks:
+    file: install_calico.yml
+    apply:
+      tags: install_calico
+  tags: install_calico
+  when: install_calico
