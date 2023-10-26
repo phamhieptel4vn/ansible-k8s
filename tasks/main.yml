@@ -75,3 +75,4 @@
     apply:
       tags: install_dashboard
   tags: install_dashboard
+  when: install_dashboard
