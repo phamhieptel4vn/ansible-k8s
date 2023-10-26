@@ -3,7 +3,7 @@
   become: yes
   remote_user: vagrant
   roles: 
-    - role: ansible-role-linux-kubernetes
+    - role: ansible-k8s
   vars_files:
     - vars.yaml
 
@@ -11,6 +11,6 @@
   become: yes
   remote_user: vagrant
   roles: 
-    -  role: ansible-role-linux-kubernetes
+    -  role: ansible-k8s
   vars_files:
     - vars.yaml
