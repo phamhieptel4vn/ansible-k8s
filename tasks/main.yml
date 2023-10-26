@@ -70,9 +70,9 @@
   tags: install_calico
   when: install_calico
 
-- include_tasks: 
-    file: install_dashboard.yml
-    apply:
-      tags: install_dashboard
-  tags: install_dashboard
-  when: install_dashboard
+# - include_tasks: 
+#     file: install_dashboard.yml
+#     apply:
+#       tags: install_dashboard
+#   tags: install_dashboard
+#   when: install_dashboard
